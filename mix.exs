@@ -6,7 +6,7 @@ defmodule Membrane.Template.Mixfile do
 
   def project do
     [
-      app: :membrane_template_plugin,
+      app: :membrane_opentelemetry,
       version: @version,
       elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -28,7 +28,8 @@ defmodule Membrane.Template.Mixfile do
 
   def application do
     [
-      extra_applications: []
+      mod: {Membrane.OpenTelemetry.Application, []},
+      extra_applications: [:logger]
     ]
   end
 

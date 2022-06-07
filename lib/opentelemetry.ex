@@ -48,31 +48,37 @@ defmodule Membrane.OpenTelemetry do
       else: default_macro([name, events])
   end
 
+  @spec register() :: :ok
+  def register() do
+    Membrane.OpenTelemetry.Monitor.start(self())
+    :ok
+  end
+
   defp do_start_span(name, opts) do
     quote do
-      with %{parent: parent_name} when parent <- unquote(opts) do
-        parent_span = unquote(__MODULE__).get_span(parent_name)
+      with %{parent: parent_name} when parent_name != nil <- unquote(opts) do
+        parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_name)
         OpenTelemetry.Tracer.set_current_span(parent_span)
       end
 
-      new_span = OpenTelemetry.Tracer.start_span(name)
-      unquote(__MODULE__).store_span(unquote(name), span)
+      new_span = OpenTelemetry.Tracer.start_span(unquote(name))
+      unquote(__MODULE__).ETSUtils.store_span(unquote(name), new_span)
       OpenTelemetry.Tracer.set_current_span(new_span)
     end
   end
 
   defp do_end_span(name, timestamp) do
     quote do
-      unquote(__MODULE__).get_span(unquote(name))
+      unquote(__MODULE__).ETSUtils.get_span(unquote(name))
       |> OpenTelemetry.Tracer.set_current_span()
 
-      OpenTelemetry.Tracer.end_span(unquote(timestamp))
+      OpenTelemetry.Tracer.end_span()
     end
   end
 
   defp do_set_current_span(name) do
     quote do
-      unquote(__MODULE__).get_span(unquote(name))
+      unquote(__MODULE__).ETSUtils.get_span(unquote(name))
       |> OpenTelemetry.Tracer.set_current_span()
     end
   end
@@ -109,7 +115,7 @@ defmodule Membrane.OpenTelemetry do
     quote do
       old_current_span = OpenTelemetry.Tracer.current_span_ctx()
 
-      span = unquote(__MODULE__).get_span(unquote(name))
+      span = unquote(__MODULE__).ETSUtils.get_span(unquote(name))
       OpenTelemetry.Tracer.set_current_span(span)
       unquote(function).()
 
@@ -123,16 +129,5 @@ defmodule Membrane.OpenTelemetry do
         _unused = unquote(values)
       end
     end
-  end
-
-  @spec store_span(span_name(), :opentelemetry.span_ctx()) :: :ok
-  def store_span(name, span) do
-    Process.put({@span, name}, span)
-    :ok
-  end
-
-  @spec get_span(span_name()) :: :opentelemetry.span_ctx() | nil
-  def get_span(name) do
-    Process.get({@span, name})
   end
 end
