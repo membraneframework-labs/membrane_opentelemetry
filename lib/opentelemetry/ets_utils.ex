@@ -1,40 +1,44 @@
 defmodule Membrane.OpenTelemetry.ETSUtils do
   @moduledoc false
 
-  @process_spans_table Membrane.OpenTelemetry.ProcessSpansTable
-  @spans_by_name_table Membrane.OpenTelemetry.SpansMapTable
+  @ets_table_name Membrane.OpenTelemetry.ProcessSpansTable
+  @pdict_key_prefix :__membrane_opentelemetry_pdict_key_prefix__
 
-  @spec create_ets_tables() :: :ok
-  def create_ets_tables() do
-    :ets.new(@process_spans_table, [
+  @spec setup_ets_table() :: :ok
+  def setup_ets_table() do
+    :ets.new(@ets_table_name, [
       :public,
       :bag,
       :named_table,
       {:write_concurrency, true}
     ])
 
-    :ets.new(@spans_by_name_table, [:public, :set, :named_table])
+    :ok
+  end
 
+  @spec delete_ets_table() :: :ok
+  def delete_ets_table() do
+    :ets.delete(@ets_table_name)
     :ok
   end
 
   @spec store_span(Membrane.OpenTelemetry.span_name(), :opentelemetry.span_ctx()) :: :ok
-  def store_span(name, pid \\ self(), span) do
-    :ets.insert(@process_spans_table, {pid, span})
-    :ets.insert(@spans_by_name_table, {{name, pid}, span})
+  def store_span(name, span) do
+    :ets.insert(@ets_table_name, {self(), span})
+    pdict_key(name) |> Process.put(span)
+
     :ok
   end
 
   @spec get_span(Membrane.OpenTelemetry.span_name()) :: :opentelemetry.span_ctx() | nil
-  def get_span(name, pid \\ self()) do
-    case :ets.lookup(@spans_by_name_table, {name, pid}) do
-      [span] -> span
-      [] -> nil
-    end
+  def get_span(name) do
+    pdict_key(name) |> Process.get()
   end
 
   @spec get_process_spans(pid()) :: [:opentelemetry.span_ctx()]
   def get_process_spans(pid \\ self()) do
-    :ets.lookup(@process_spans_table, pid)
+    :ets.lookup(@ets_table_name, pid)
   end
+
+  defp pdict_key(name), do: {@pdict_key_prefix, name}
 end
