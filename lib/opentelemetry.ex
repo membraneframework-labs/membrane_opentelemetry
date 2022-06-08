@@ -69,10 +69,10 @@ defmodule Membrane.OpenTelemetry do
 
   defp do_end_span(name, timestamp) do
     quote do
-      unquote(__MODULE__).ETSUtils.get_span(unquote(name))
-      |> OpenTelemetry.Tracer.set_current_span()
-
-      OpenTelemetry.Tracer.end_span()
+      with span when span != nil <- unquote(__MODULE__).ETSUtils.pop_span(unquote(name)) do
+        OpenTelemetry.Tracer.set_current_span(span)
+        OpenTelemetry.Tracer.end_span()
+      end
     end
   end
 

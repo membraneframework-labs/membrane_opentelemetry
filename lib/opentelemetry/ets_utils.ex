@@ -30,6 +30,14 @@ defmodule Membrane.OpenTelemetry.ETSUtils do
     :ok
   end
 
+  @spec pop_span(Membrane.OpenTelemetry.span_name()) :: :opentelemetry.span_ctx() | nil
+  def pop_span(name) do
+    span = pdict_key(name) |> Process.delete()
+    if span, do: :ets.delete(@ets_table_name, {self(), span})
+
+    span
+  end
+
   @spec get_span(Membrane.OpenTelemetry.span_name()) :: :opentelemetry.span_ctx() | nil
   def get_span(name) do
     pdict_key(name) |> Process.get()

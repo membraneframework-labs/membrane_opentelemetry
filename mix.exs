@@ -1,8 +1,8 @@
-defmodule Membrane.Template.Mixfile do
+defmodule Membrane.OpenTelemetry.Mixfile do
   use Mix.Project
 
   @version "0.1.0"
-  @github_url "https://github.com/membraneframework/membrane_template_plugin"
+  @github_url "https://github.com/membraneframework/membrane_opentelemetry"
 
   def project do
     [
@@ -15,11 +15,11 @@ defmodule Membrane.Template.Mixfile do
       dialyzer: dialyzer(),
 
       # hex
-      description: "Template Plugin for Membrane Multimedia Framework",
+      description: "Wrapper on OpenTelemetry functions for Membrane Multimedia Framework",
       package: package(),
 
       # docs
-      name: "Membrane Template plugin",
+      name: "Membrane OpenTelemetry",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
       docs: docs()
