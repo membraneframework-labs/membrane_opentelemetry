@@ -2,48 +2,47 @@ defmodule Membrane.OpenTelemetry do
   require OpenTelemetry
 
   @enabled Application.compile_env(:membrane_opentelemetry, :enabled, false)
-  @span :__membrane_optentelemetry_span__
 
   @type span_name :: String.t()
 
   defmacro start_span(name, opts \\ quote(do: %{})) do
-    if @enabled,
+    if enabled(),
       do: do_start_span(name, opts),
       else: default_macro([name, opts])
   end
 
-  defmacro end_span(name, timestamp \\ quote(do: :undefined)) do
-    if @enabled,
-      do: do_end_span(name, timestamp),
-      else: default_macro([name, timestamp])
+  defmacro end_span(name) do
+    if enabled(),
+      do: do_end_span(name),
+      else: default_macro([name])
   end
 
   defmacro set_current_span(name) do
-    if @enabled,
+    if enabled(),
       do: do_set_current_span(name),
       else: default_macro([name])
   end
 
   defmacro set_attribute(name, key, value) do
-    if @enabled,
+    if enabled(),
       do: do_set_attribute(name, key, value),
       else: default_macro([name, key, value])
   end
 
   defmacro set_attributes(name, attributes) do
-    if @enabled,
+    if enabled(),
       do: do_set_attributes(name, attributes),
       else: default_macro([name, attributes])
   end
 
   defmacro add_event(name, event, attributes) do
-    if @enabled,
+    if enabled(),
       do: do_add_event(name, event, attributes),
       else: default_macro([name, event, attributes])
   end
 
   defmacro add_events(name, events) do
-    if @enabled,
+    if enabled(),
       do: do_add_events(name, events),
       else: default_macro([name, events])
   end
@@ -53,6 +52,8 @@ defmodule Membrane.OpenTelemetry do
     Membrane.OpenTelemetry.Monitor.start(self())
     :ok
   end
+
+  defp enabled(), do: @enabled
 
   defp do_start_span(name, opts) do
     quote do
@@ -67,7 +68,7 @@ defmodule Membrane.OpenTelemetry do
     end
   end
 
-  defp do_end_span(name, timestamp) do
+  defp do_end_span(name) do
     quote do
       with span when span != nil <- unquote(__MODULE__).ETSUtils.pop_span(unquote(name)) do
         OpenTelemetry.Tracer.set_current_span(span)
