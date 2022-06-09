@@ -47,10 +47,12 @@ defmodule Membrane.OpenTelemetry do
       else: default_macro([name, events])
   end
 
-  @spec register() :: :ok
-  def register() do
-    Membrane.OpenTelemetry.Monitor.start(self())
-    :ok
+  defmacro register() do
+    if enabled() do
+      quote do
+        unquote(__MODULE__).Monitor.start(self())
+      end
+    end
   end
 
   defp enabled(), do: @enabled
@@ -87,38 +89,42 @@ defmodule Membrane.OpenTelemetry do
   defp do_set_attribute(name, key, value) do
     call_with_current_span(
       name,
-      fn -> OpenTelemetry.Tracer.set_attribute(key, value) end
+      &OpenTelemetry.Tracer.set_attribute/2,
+      [key, value]
     )
   end
 
   defp do_set_attributes(name, attributes) do
     call_with_current_span(
       name,
-      fn -> OpenTelemetry.Tracer.set_attributes(attributes) end
+      &OpenTelemetry.Tracer.set_attributes/1,
+      [attributes]
     )
   end
 
   defp do_add_event(name, event, attributes) do
     call_with_current_span(
       name,
-      fn -> OpenTelemetry.Tracer.add_event(event, attributes) end
+      &OpenTelemetry.Span.add_event/3,
+      [name, event, attributes]
     )
   end
 
   defp do_add_events(name, events) do
     call_with_current_span(
       name,
-      fn -> OpenTelemetry.Tracer.add_events(events) end
+      &OpenTelemetry.Tracer.add_events/1,
+      [events]
     )
   end
 
-  defp call_with_current_span(name, function) do
+  defp call_with_current_span(name, function, args) do
     quote do
       old_current_span = OpenTelemetry.Tracer.current_span_ctx()
 
       span = unquote(__MODULE__).ETSUtils.get_span(unquote(name))
       OpenTelemetry.Tracer.set_current_span(span)
-      unquote(function).()
+      apply(unquote(function), unquote(args))
 
       OpenTelemetry.Tracer.set_current_span(old_current_span)
     end
