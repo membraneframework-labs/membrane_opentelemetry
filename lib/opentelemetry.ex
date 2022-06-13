@@ -1,52 +1,81 @@
 defmodule Membrane.OpenTelemetry do
+  @moduledoc """
+  Defines macros for operations on OpenTelemetry spans.
+  Provided macros evalueate to appropriate calls to OpenTelemetry functions or to nothing, depending on config values
+  """
+
   require OpenTelemetry
 
   @enabled Application.compile_env(:membrane_opentelemetry, :enabled, false)
 
   @type span_name :: String.t()
 
+  @doc """
+  Starts a new span. If the second argument contains value `parent` under key `:parent`, then span named `parent` will be the parent span of the newly created one.
+  """
   defmacro start_span(name, opts \\ quote(do: %{})) do
     if enabled(),
       do: do_start_span(name, opts),
       else: default_macro([name, opts])
   end
 
+  @doc """
+  Ends a span.
+  """
   defmacro end_span(name) do
     if enabled(),
       do: do_end_span(name),
       else: default_macro([name])
   end
 
+  @doc """
+  Sets specific span with specific name as current one.
+  """
   defmacro set_current_span(name) do
     if enabled(),
       do: do_set_current_span(name),
       else: default_macro([name])
   end
 
+  @doc """
+  Sets an attribute value in a span with a specific name.
+  """
   defmacro set_attribute(name, key, value) do
     if enabled(),
       do: do_set_attribute(name, key, value),
       else: default_macro([name, key, value])
   end
 
+  @doc """
+  Sets attributes in a span with specific name.
+  """
   defmacro set_attributes(name, attributes) do
     if enabled(),
       do: do_set_attributes(name, attributes),
       else: default_macro([name, attributes])
   end
 
+  @doc """
+  Adds an event to a span with a specific name.
+  """
   defmacro add_event(name, event, attributes) do
     if enabled(),
       do: do_add_event(name, event, attributes),
       else: default_macro([name, event, attributes])
   end
 
+  @doc """
+  Adds events to a span with a specific name.
+  """
   defmacro add_events(name, events) do
     if enabled(),
       do: do_add_events(name, events),
       else: default_macro([name, events])
   end
 
+  @doc """
+  Should be executed in every procces, that will execute any other function or macro from this module.
+  """
   defmacro register() do
     if enabled() do
       quote do
