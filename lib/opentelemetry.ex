@@ -105,8 +105,8 @@ defmodule Membrane.OpenTelemetry do
   defp do_add_event(name, event, attributes) do
     call_with_current_span(
       name,
-      &OpenTelemetry.Span.add_event/3,
-      [name, event, attributes]
+      &OpenTelemetry.Tracer.add_event/2,
+      [event, attributes]
     )
   end
 
