@@ -74,13 +74,27 @@ defmodule Membrane.OpenTelemetry do
   end
 
   @doc """
-  Should be executed in every procces, that will execute any other function or macro from this module.
+  Ensures, that every span started in the process calling this function, will be implicite closed after the process end.
+  Should be called in every process, that will execute any other function or macro from this module.
   """
   defmacro register() do
     if enabled() do
       quote do
         unquote(__MODULE__).Monitor.start(self())
       end
+    end
+  end
+
+  @doc """
+  Attaches `otel_ctx`. See docs for `OpenTelemetry.Ctx.attach/1`.
+  """
+  defmacro attach(ctx) do
+    if enabled() do
+      quote do
+        OpenTelemetry.Ctx.attach(unquote(ctx))
+      end
+    else
+      default_macro(ctx)
     end
   end
 
