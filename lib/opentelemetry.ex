@@ -5,6 +5,8 @@ defmodule Membrane.OpenTelemetry do
   """
 
   require OpenTelemetry
+  require OpenTelemetry.Tracer
+  require OpenTelemetry.Ctx
 
   @enabled Application.compile_env(:membrane_opentelemetry, :enabled, false)
 
@@ -91,6 +93,7 @@ defmodule Membrane.OpenTelemetry do
   defmacro attach(ctx) do
     if enabled() do
       quote do
+        require OpenTelemetry.Ctx
         OpenTelemetry.Ctx.attach(unquote(ctx))
       end
     else
@@ -102,6 +105,8 @@ defmodule Membrane.OpenTelemetry do
 
   defp do_start_span(name, opts) do
     quote do
+      require OpenTelemetry.Tracer
+
       with %{parent: parent_name} when parent_name != nil <- unquote(opts) do
         parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_name)
         OpenTelemetry.Tracer.set_current_span(parent_span)
@@ -115,6 +120,8 @@ defmodule Membrane.OpenTelemetry do
 
   defp do_end_span(name) do
     quote do
+      require OpenTelemetry.Tracer
+
       with span when span != nil <- unquote(__MODULE__).ETSUtils.pop_span(unquote(name)) do
         OpenTelemetry.Tracer.set_current_span(span)
         OpenTelemetry.Tracer.end_span()
@@ -124,6 +131,8 @@ defmodule Membrane.OpenTelemetry do
 
   defp do_set_current_span(name) do
     quote do
+      require OpenTelemetry.Tracer
+
       unquote(__MODULE__).ETSUtils.get_span(unquote(name))
       |> OpenTelemetry.Tracer.set_current_span()
     end
@@ -163,6 +172,8 @@ defmodule Membrane.OpenTelemetry do
 
   defp call_with_current_span(name, function, args) do
     quote do
+      require OpenTelemetry.Tracer
+
       old_current_span = OpenTelemetry.Tracer.current_span_ctx()
 
       span = unquote(__MODULE__).ETSUtils.get_span(unquote(name))
