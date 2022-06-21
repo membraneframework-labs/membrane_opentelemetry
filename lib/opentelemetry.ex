@@ -15,7 +15,7 @@ defmodule Membrane.OpenTelemetry do
   @doc """
   Starts a new span. If the second argument contains value `parent` under key `:parent`, then span named `parent` will be the parent span of the newly created one.
   """
-  defmacro start_span(name, opts \\ quote(do: %{})) do
+  defmacro start_span(name, opts \\ []) do
     if enabled(),
       do: do_start_span(name, opts),
       else: default_macro([name, opts])
@@ -60,7 +60,7 @@ defmodule Membrane.OpenTelemetry do
   @doc """
   Adds an event to a span with a specific name.
   """
-  defmacro add_event(name, event, attributes) do
+  defmacro add_event(name, event, attributes \\ []) do
     if enabled(),
       do: do_add_event(name, event, attributes),
       else: default_macro([name, event, attributes])
@@ -101,18 +101,37 @@ defmodule Membrane.OpenTelemetry do
     end
   end
 
+  @spec get_span(Membrane.OpenTelemetry.span_name()) :: :opentelemetry.span_ctx() | nil
+  defdelegate get_span(name), to: __MODULE__.ETSUtils
+
   defp enabled(), do: @enabled
 
   defp do_start_span(name, opts) do
     quote do
       require OpenTelemetry.Tracer
 
-      with %{parent: parent_name} when parent_name != nil <- unquote(opts) do
-        parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_name)
-        OpenTelemetry.Tracer.set_current_span(parent_span)
+      opts_map = unquote(opts) |> Map.new()
+
+      case opts_map do
+        %{parent_name: parent_name} ->
+          parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_name)
+          OpenTelemetry.Tracer.set_current_span(parent_span)
+
+        %{parent: parent_span} when parent_span != nil ->
+          OpenTelemetry.Tracer.set_current_span(parent_span)
+
+        _else ->
+          :ok
       end
 
-      new_span = OpenTelemetry.Tracer.start_span(unquote(name))
+      links =
+        case opts_map do
+          %{linked_spans: spans} when is_list(spans) -> spans
+          _else -> []
+        end
+        |> Enum.map(&OpenTelemetry.link/1)
+
+      new_span = OpenTelemetry.Tracer.start_span(unquote(name), %{links: links})
       unquote(__MODULE__).ETSUtils.store_span(unquote(name), new_span)
       OpenTelemetry.Tracer.set_current_span(new_span)
     end
