@@ -48,5 +48,11 @@ defmodule Membrane.OpenTelemetry.ETSUtils do
     :ets.lookup(@ets_table_name, pid)
   end
 
+  @spec delete_process_spans(pid()) :: :ok
+  def delete_process_spans(pid \\ self()) do
+    :ets.delete(@ets_table_name, pid)
+    :ok
+  end
+
   defp pdict_key(name), do: {@pdict_key_prefix, name}
 end

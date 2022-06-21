@@ -1,6 +1,8 @@
 defmodule Membrane.OpenTelemetry.Monitor do
   @moduledoc false
 
+  require OpenTelemetry.Tracer
+
   alias Membrane.OpenTelemetry.ETSUtils
 
   @spec start(pid() | atom()) :: pid()
@@ -19,6 +21,8 @@ defmodule Membrane.OpenTelemetry.Monitor do
           OpenTelemetry.Tracer.set_current_span(span)
           OpenTelemetry.Tracer.end_span()
         end)
+
+        ETSUtils.delete_process_spans(observed_process)
     end
 
     :ok
