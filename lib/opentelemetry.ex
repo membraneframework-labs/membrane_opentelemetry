@@ -131,7 +131,13 @@ defmodule Membrane.OpenTelemetry do
         end
         |> Enum.map(&OpenTelemetry.link/1)
 
-      new_span = OpenTelemetry.Tracer.start_span(unquote(name), %{links: links})
+      span_name =
+        case opts_map do
+          %{name: name} -> name
+          _else -> unquote(name)
+        end
+
+      new_span = OpenTelemetry.Tracer.start_span(span_name, %{links: links})
       unquote(__MODULE__).ETSUtils.store_span(unquote(name), new_span)
       OpenTelemetry.Tracer.set_current_span(new_span)
     end
