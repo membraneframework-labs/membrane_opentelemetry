@@ -15,7 +15,7 @@ defmodule Membrane.OpenTelemetry.Mixfile do
       dialyzer: dialyzer(),
 
       # hex
-      description: "Wrapper on OpenTelemetry functions for Membrane Multimedia Framework",
+      description: "Wrapper of OpenTelemetry functions for Membrane Multimedia Framework",
       package: package(),
 
       # docs

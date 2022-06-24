@@ -4,7 +4,7 @@
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_opentelemetry)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_opentelemetry.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_opentelemetry)
 
-This repository contains Membrane wrappers on OpenTelemetry functions.
+This repository contains Membrane wrappers of OpenTelemetry functions.
 
 It is part of [Membrane Multimedia Framework](https://membraneframework.org).
 

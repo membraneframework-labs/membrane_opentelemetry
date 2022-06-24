@@ -10,14 +10,14 @@ defmodule Membrane.OpenTelemetry.Monitor do
     Process.spawn(__MODULE__, :run, [observed_process], [])
   end
 
-  @spec run(pid()) :: :ok
+  @spec run(pid() | atom()) :: :ok
   def run(observed_process) do
     Process.monitor(observed_process)
 
     receive do
-      {:DOWN, _ref, _process, ^observed_process, _reason} ->
+      {:DOWN, _ref, _process, _pid, _reason} ->
         ETSUtils.get_process_spans(observed_process)
-        |> Enum.each(fn {_pid, span} ->
+        |> Enum.each(fn span ->
           OpenTelemetry.Tracer.set_current_span(span)
           OpenTelemetry.Tracer.end_span()
         end)

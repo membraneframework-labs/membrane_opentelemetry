@@ -1,7 +1,8 @@
 defmodule Membrane.OpenTelemetry do
   @moduledoc """
-  Defines macros for operations on OpenTelemetry spans.
-  Provided macros evalueate to appropriate calls to OpenTelemetry functions or to nothing, depending on config values
+  Defines macros for operations on (OpenTelemetry)[https://hexdocs.pm/opentelemetry_api] traces, spans and events.
+  Provided macros expand to appropriate calls to (OpenTelemetry)[https://hexdocs.pm/opentelemetry_api] functions or to nothing, depending on config values.
+  Purpose of this module, is to provide simple way of introducing OpenTelemetry into Membrane Elements, Bins and Piplines.
   """
 
   require OpenTelemetry
@@ -10,79 +11,86 @@ defmodule Membrane.OpenTelemetry do
 
   @enabled Application.compile_env(:membrane_opentelemetry, :enabled, false)
 
-  @type span_name :: String.t()
+  @type span_id :: String.t()
 
   @doc """
-  Starts a new span. If the second argument contains value `parent` under key `:parent`, then span named `parent` will be the parent span of the newly created one.
+  Starts a new span.
+
+  Options:
+  - `parent_span` - a span_ctx of a span, that will be the parent of the created span
+  - `parent_id` - an id of a span, that will be the parent of the created span. Shouldn't be used with `parent_span` option. Available only for spans, that were created or stored in the same process in which we call this macro.
+  - `name` - name of a span. If not provided, by default span name will be span id
   """
-  defmacro start_span(name, opts \\ []) do
+  defmacro start_span(id, opts \\ []) do
     if enabled(),
-      do: do_start_span(name, opts),
-      else: default_macro([name, opts])
+      do: do_start_span(id, opts),
+      else: void([id, opts])
   end
 
   @doc """
   Ends a span.
   """
-  defmacro end_span(name) do
+  defmacro end_span(id) do
     if enabled(),
-      do: do_end_span(name),
-      else: default_macro([name])
+      do: do_end_span(id),
+      else: void([id])
   end
 
   @doc """
-  Sets specific span with specific name as current one.
+  Sets an attribute value in a span with a specific id.
   """
-  defmacro set_current_span(name) do
+  defmacro set_attribute(id, key, value) do
     if enabled(),
-      do: do_set_current_span(name),
-      else: default_macro([name])
+      do: do_set_attribute(id, key, value),
+      else: void([id, key, value])
   end
 
   @doc """
-  Sets an attribute value in a span with a specific name.
+  Sets attributes in a span with specific id.
   """
-  defmacro set_attribute(name, key, value) do
+  defmacro set_attributes(id, attributes) do
     if enabled(),
-      do: do_set_attribute(name, key, value),
-      else: default_macro([name, key, value])
+      do: do_set_attributes(id, attributes),
+      else: void([id, attributes])
   end
 
   @doc """
-  Sets attributes in a span with specific name.
+  Adds an event to a span with a specific id.
   """
-  defmacro set_attributes(name, attributes) do
+  defmacro add_event(id, event, attributes \\ []) do
     if enabled(),
-      do: do_set_attributes(name, attributes),
-      else: default_macro([name, attributes])
+      do: do_add_event(id, event, attributes),
+      else: void([id, event, attributes])
   end
 
   @doc """
-  Adds an event to a span with a specific name.
+  Adds events to a span with a specific id.
   """
-  defmacro add_event(name, event, attributes \\ []) do
+  defmacro add_events(id, events) do
     if enabled(),
-      do: do_add_event(name, event, attributes),
-      else: default_macro([name, event, attributes])
-  end
-
-  @doc """
-  Adds events to a span with a specific name.
-  """
-  defmacro add_events(name, events) do
-    if enabled(),
-      do: do_add_events(name, events),
-      else: default_macro([name, events])
+      do: do_add_events(id, events),
+      else: void([id, events])
   end
 
   @doc """
   Ensures, that every span started in the process calling this function, will be implicite closed after the process end.
   Should be called in every process, that will execute any other function or macro from this module.
   """
-  defmacro register() do
+  defmacro register_process() do
     if enabled() do
       quote do
         unquote(__MODULE__).Monitor.start(self())
+      end
+    end
+  end
+
+  @doc """
+  Creates new `otel_ctx`. See docs for `OpenTelemetry.Ctx.new/1`.
+  """
+  defmacro new_ctx() do
+    if enabled() do
+      quote do
+        OpenTelemetry.Ctx.new()
       end
     end
   end
@@ -93,31 +101,31 @@ defmodule Membrane.OpenTelemetry do
   defmacro attach(ctx) do
     if enabled() do
       quote do
-        require OpenTelemetry.Ctx
         OpenTelemetry.Ctx.attach(unquote(ctx))
       end
     else
-      default_macro(ctx)
+      void(ctx)
     end
   end
 
-  @spec get_span(Membrane.OpenTelemetry.span_name()) :: :opentelemetry.span_ctx() | nil
-  defdelegate get_span(name), to: __MODULE__.ETSUtils
+  @spec get_span(Membrane.OpenTelemetry.span_id()) :: :opentelemetry.span_ctx() | nil
+  defdelegate get_span(id), to: __MODULE__.ETSUtils
 
   defp enabled(), do: @enabled
 
-  defp do_start_span(name, opts) do
+  defp do_start_span(id, opts) do
     quote do
       require OpenTelemetry.Tracer
 
       opts_map = unquote(opts) |> Map.new()
+      old_current_span = OpenTelemetry.Tracer.current_span_ctx()
 
       case opts_map do
-        %{parent_name: parent_name} ->
-          parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_name)
+        %{parent_id: parent_id} ->
+          parent_span = unquote(__MODULE__).ETSUtils.get_span(parent_id)
           OpenTelemetry.Tracer.set_current_span(parent_span)
 
-        %{parent: parent_span} when parent_span != nil ->
+        %{parent_span: parent_span} ->
           OpenTelemetry.Tracer.set_current_span(parent_span)
 
         _else ->
@@ -134,82 +142,60 @@ defmodule Membrane.OpenTelemetry do
       span_name =
         case opts_map do
           %{name: name} -> name
-          _else -> unquote(name)
+          _else -> unquote(id)
         end
 
       new_span = OpenTelemetry.Tracer.start_span(span_name, %{links: links})
-      unquote(__MODULE__).ETSUtils.store_span(unquote(name), new_span)
-      OpenTelemetry.Tracer.set_current_span(new_span)
+      unquote(__MODULE__).ETSUtils.store_span(unquote(id), new_span)
+
+      if old_current_span,
+        do: OpenTelemetry.Tracer.set_current_span(old_current_span)
+
+      new_span
     end
   end
 
-  defp do_end_span(name) do
+  defp do_end_span(id) do
     quote do
-      require OpenTelemetry.Tracer
-
-      with span when span != nil <- unquote(__MODULE__).ETSUtils.pop_span(unquote(name)) do
-        OpenTelemetry.Tracer.set_current_span(span)
-        OpenTelemetry.Tracer.end_span()
+      with span when span != nil <- unquote(__MODULE__).ETSUtils.pop_span(unquote(id)) do
+        OpenTelemetry.Span.end_span(span)
       end
     end
   end
 
-  defp do_set_current_span(name) do
+  defp do_set_attribute(id, key, value) do
     quote do
-      require OpenTelemetry.Tracer
-
-      unquote(__MODULE__).ETSUtils.get_span(unquote(name))
-      |> OpenTelemetry.Tracer.set_current_span()
+      unquote(id)
+      |> unquote(__MODULE__).ETSUtils.get_span()
+      |> OpenTelemetry.Span.set_attribute(unquote(key), unquote(value))
     end
   end
 
-  defp do_set_attribute(name, key, value) do
-    call_with_current_span(
-      name,
-      &OpenTelemetry.Tracer.set_attribute/2,
-      [key, value]
-    )
-  end
-
-  defp do_set_attributes(name, attributes) do
-    call_with_current_span(
-      name,
-      &OpenTelemetry.Tracer.set_attributes/1,
-      [attributes]
-    )
-  end
-
-  defp do_add_event(name, event, attributes) do
-    call_with_current_span(
-      name,
-      &OpenTelemetry.Tracer.add_event/2,
-      [event, attributes]
-    )
-  end
-
-  defp do_add_events(name, events) do
-    call_with_current_span(
-      name,
-      &OpenTelemetry.Tracer.add_events/1,
-      [events]
-    )
-  end
-
-  defp call_with_current_span(name, function, args) do
+  defp do_set_attributes(id, attributes) do
     quote do
-      require OpenTelemetry.Tracer
-
-      old_current_span = OpenTelemetry.Tracer.current_span_ctx()
-
-      span = unquote(__MODULE__).ETSUtils.get_span(unquote(name))
-      OpenTelemetry.Tracer.set_current_span(span)
-      apply(unquote(function), unquote(args))
-
-      OpenTelemetry.Tracer.set_current_span(old_current_span)
+      unquote(id)
+      |> unquote(__MODULE__).ETSUtils.get_span()
+      |> OpenTelemetry.Span.set_attributes(unquote(attributes))
     end
   end
 
-  defp default_macro(values) do
+  defp do_add_event(id, event, attributes) do
+    quote do
+      unquote(id)
+      |> unquote(__MODULE__).ETSUtils.get_span()
+      |> OpenTelemetry.Span.add_event(unquote(event), unquote(attributes))
+    end
+  end
+
+  defp do_add_events(id, events) do
+    quote do
+      unquote(id)
+      |> unquote(__MODULE__).ETSUtils.get_span()
+      |> OpenTelemetry.Span.add_events(unquote(events))
+    end
+  end
+
+  defp void(values) do
     quote do
       fn ->
         _unused = unquote(values)
