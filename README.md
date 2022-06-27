@@ -24,7 +24,7 @@ end
 
 Firstly, you have to turn on `Membrane.OpenTelemetry` in your config files. To do this, add 
 ```elixir
-config :membrane_opentelemetry, enabled: telemetry_enabled
+config :membrane_opentelemetry, enabled: true
 ```
 to your `config/config.exs` file. Beyond that, you have to turn on OpenTelemetry itself. You can do this by adding 
 ```elixir
@@ -42,16 +42,11 @@ config :opentelemetry, :resource,
 ```
 to your `config/runtime.exs` file. In this case, you will use exporter, that will put tracing data on stdout, but you can use Zipkin or Honeycomb exporters for OpenTelemetry as well (take a look on (membrane_videoroom)[https://github.com/membraneframework/membrane_videoroom] (config/runtime.exs)[https://github.com/membraneframework/membrane_videoroom/blob/master/config/runtime.exs], if you want an example).
 
-Before starting a span in your code, you have to call 
-```elixir
-Membrane.OpenTelemetry.register_process()
-```
-in process, that will open your spans. This function provides certainty, that if the process, that opened some spans, ends before closing them (eg. because of error), all these spans will be closed right after that.
-
 To start your fist span, you have to call 
 ```elixir
 Membrane.OpenTelemetry.start_span("root_span")
 ```
+You have just starterd new span, that id is `"root_span"`. Span id is used to identify span within one process. You cannot have two different spans with this same id in one process.
 
 Then, if you want to start a span, that will be a child of a `root_span`, call
 ```elixir
@@ -62,13 +57,14 @@ You can also specify span parent, by passing its `span_ctx`. It is useful, in th
 ```elixir
 Membrane.OpenTelemetry.start_span("another_child_span", parent_span: parent_span_ctx) 
 ```
-In this case, you could also call 
+
+To get the span context, call 
 ```elixir
 root_span_ctx = Membrane.OpenTelemetry.get_span("root_span")
-Membrane.OpenTelemetry.start_span("another_child_span", parent_span: root_span_ctx) 
 ```
+in the process, that started the `root_span`.
 
-If you want to have a span, that has a different id than a name, pass `:name` option to `Membrane.OpenTelemetry.start_span/2`
+Span name is a string, that probably will be used to identify your span in the visualization tool, like Zipkin or Honeycomb. By default, span name is equal to id, but you can override it by passing `:name` option to `Membrane.OpenTelemetry.start_span/2`. 
 ```elixir
 Membrane.OpenTelemetry.start_span("grandchild_span", parent_id: "child_span", name: "grandchild_span_name") 
 ```

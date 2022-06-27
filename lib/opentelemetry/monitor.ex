@@ -5,6 +5,19 @@ defmodule Membrane.OpenTelemetry.Monitor do
 
   alias Membrane.OpenTelemetry.ETSUtils
 
+  @pdict_key :__membrane_opentelemetry_monitor__
+
+  @spec ensure_monitor_started() :: :ok
+  def ensure_monitor_started() do
+    with nil <- Process.get(@pdict_key) do
+      self()
+      |> start()
+      |> then(&Process.put(@pdict_key, &1))
+    end
+
+    :ok
+  end
+
   @spec start(pid() | atom()) :: pid()
   def start(observed_process) do
     Process.spawn(__MODULE__, :run, [observed_process], [])

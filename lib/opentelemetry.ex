@@ -15,6 +15,8 @@ defmodule Membrane.OpenTelemetry do
 
   @doc """
   Starts a new span.
+  Returns context of newly created span.
+  First argument is span id. Span id is used to identify span and must be unique within one process.
 
   Options:
   - `parent_span` - a span_ctx of a span, that will be the parent of the created span
@@ -73,18 +75,6 @@ defmodule Membrane.OpenTelemetry do
   end
 
   @doc """
-  Ensures, that every span started in the process calling this function, will be implicite closed after the process end.
-  Should be called in every process, that will execute any other function or macro from this module.
-  """
-  defmacro register_process() do
-    if enabled() do
-      quote do
-        unquote(__MODULE__).Monitor.start(self())
-      end
-    end
-  end
-
-  @doc """
   Creates new `otel_ctx`. See docs for `OpenTelemetry.Ctx.new/1`.
   """
   defmacro new_ctx() do
@@ -116,6 +106,8 @@ defmodule Membrane.OpenTelemetry do
   defp do_start_span(id, opts) do
     quote do
       require OpenTelemetry.Tracer
+
+      unquote(__MODULE__).Monitor.ensure_monitor_started()
 
       opts_map = unquote(opts) |> Map.new()
       old_current_span = OpenTelemetry.Tracer.current_span_ctx()
