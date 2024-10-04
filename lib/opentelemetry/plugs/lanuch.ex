@@ -3,7 +3,6 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch do
   Attaches OpenTelemetry spans describing events during components launch, since `handle_init` until `handle_end_of_stream`
   """
 
-  alias Logger.Backends.Handler
   alias Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions
 
   @all_callbacks [
@@ -20,7 +19,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch do
 
   @spec attach_events() :: :ok
   def attach_events() do
-    __MODULE__.ETSUtils.setup_ets_table()
+    __MODULE__.ETSWrapper.setup_ets_table()
 
     :telemetry.attach(
       {__MODULE__, :start_span},

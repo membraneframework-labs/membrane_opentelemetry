@@ -39,6 +39,8 @@ defmodule Membrane.OpenTelemetry.Mixfile do
   defp deps do
     [
       {:opentelemetry_api, "~> 1.0.0"},
+      # todo: move new code to the separate repo and delete this dependency
+      {:membrane_core, "~> 1.1"},
       {:telemetry, "~> 1.3.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},

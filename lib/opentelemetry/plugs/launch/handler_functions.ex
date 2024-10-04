@@ -9,7 +9,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
 
   @spec pipeline_monitor(pid()) :: :ok
   def pipeline_monitor(pipeline) do
-    ref = Process.monitor(pipline)
+    ref = Process.monitor(pipeline)
 
     receive do
       {:DOWN, ^ref, _process, _pid, _reason} -> cleanup_pipeline(pipeline)
@@ -21,28 +21,33 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
   defp cleanup_pipeline(pipeline) do
     ETSWrapper.get_pipeline_offsprings(pipeline)
     |> Enum.each(fn offspring ->
-      {:ok, span_ctx, ^pipline} = ETSWrapper.get_span_and_pipeline(offspring)
+      {:ok, span_ctx, ^pipeline} = ETSWrapper.get_span_and_pipeline(offspring)
       ETSWrapper.delete_span_and_pipeline(offspring, span_ctx, pipeline)
       ETSWrapper.delete_pipeline_offspring(pipeline, offspring)
     end)
   end
 
+  def start_span(_name, _measurements, metadata, _config) do
+    metadata.component_state.module.membrane_component_type()
+    |> do_start_span(metadata.component_state)
+  end
+
   defp do_start_span(component_type, component_state)
 
-  defp do_start_span(:pipeline) do
+  defp do_start_span(:pipeline, _component_state) do
     Membrane.OpenTelemetry.start_span(@span_id)
     Process.put(@pdict_key_span_alive?, true)
 
     pipeline = self()
 
     Membrane.OpenTelemetry.get_span(@span_id)
-    |> ETSWrapper.store_span_and_pipeline(pipline)
+    |> ETSWrapper.store_span_and_pipeline(pipeline)
 
     Task.start(__MODULE__, :pipeline_monitor, [pipeline])
   end
 
-  defp do_start_span(:bin) do
-    {:ok, parent_span_ctx, pipeline} = ETSWrapper.get_span_and_pipelne(component_state.parent_pid)
+  defp do_start_span(:bin, component_state) do
+    {:ok, parent_span_ctx, pipeline} = ETSWrapper.get_span_and_pipeline(component_state.parent_pid)
     Membrane.OpenTelemetry.start_span(@span_id, parent_span: parent_span_ctx)
     Process.put(@pdict_key_span_alive?, true)
 
@@ -53,7 +58,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
   end
 
   defp do_start_span(:element, component_state) do
-    {:ok, parent_span_ctx, pipeline} = ETSWrapper.get_span_and_pipelne(component_state.parent_pid)
+    {:ok, parent_span_ctx, _pipeline} = ETSWrapper.get_span_and_pipeline(component_state.parent_pid)
     Membrane.OpenTelemetry.start_span(@span_id, parent_span: parent_span_ctx)
     Process.put(@pdict_key_span_alive?, true)
   end
@@ -64,7 +69,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
   end
 
   def callback_start([:membrane, _callback, :start] = name, _measurements, _metadata, _config) do
-    if Process.get(@pdict_key_span_alive, false) do
+    if Process.get(@pdict_key_span_alive?, false) do
       event_name = name |> Enum.map_join("_", &Atom.to_string/1)
       Membrane.OpenTelemetry.add_event(@span_id, event_name)
     end
@@ -77,7 +82,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
         _metadata,
         _config
       ) do
-    if Process.get(@pdict_key_span_alive, false) do
+    if Process.get(@pdict_key_span_alive?, false) do
       event_name = name |> Enum.map_join("_", &Atom.to_string/1)
       Membrane.OpenTelemetry.add_event(@span_id, event_name, duration: duration)
     end

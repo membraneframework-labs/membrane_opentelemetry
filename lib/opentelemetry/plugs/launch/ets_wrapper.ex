@@ -23,13 +23,13 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.ETSWrapper do
     :ok
   end
 
-  @spec get_span_and_pipeline() :: {:ok, OpenTelemetry.span_ctx(), pid()}
+  @spec get_span_and_pipeline(pid()) :: {:ok, OpenTelemetry.span_ctx(), pid()}
   def get_span_and_pipeline(pid) do
-    [{pid, {span_ctx, pipeline}}] = :ets.lookup(@pid_to_span_ets, pid)
+    [{^pid, {span_ctx, pipeline}}] = :ets.lookup(@pid_to_span_ets, pid)
     {:ok, span_ctx, pipeline}
   end
 
-  @spec store_span_and_pieline(OpenTelemetry.span_ctx(), pid()) :: :ok
+  @spec store_span_and_pipeline(OpenTelemetry.span_ctx(), pid()) :: :ok
   def store_span_and_pipeline(span_ctx, pipeline) do
     :ets.insert(@pid_to_span_ets, {self(), {span_ctx, pipeline}})
     :ok
@@ -49,7 +49,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.ETSWrapper do
     |> Enum.map(fn {^pipeline, component} -> component end)
   end
 
-  def delete_pipeline_offspring(piepline, offspring) do
+  def delete_pipeline_offspring(pipeline, offspring) do
     :ets.delete(@pipeline_offsprings_ets, {pipeline, offspring})
   end
 end
