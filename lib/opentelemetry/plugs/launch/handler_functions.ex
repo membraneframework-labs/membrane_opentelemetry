@@ -7,7 +7,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
   @span_id "component_launch"
   @pdict_key_span_alive? :__membrane_opentelemetry_lanuch_span_alive?
 
-  @spec start_span(:opentelemetry.event_name(), map(), map(), any()) :: :ok
+  @spec start_span(:telemetry.event_name(), map(), map(), any()) :: :ok
   def start_span(_name, _measurements, metadata, _config) do
     metadata.component_state.module.membrane_component_type()
     |> do_start_span(metadata.component_state)
@@ -52,14 +52,14 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
     Process.put(@pdict_key_span_alive?, true)
   end
 
-  @spec end_span(:opentelemetry.event_name(), map(), map(), any()) :: :ok
+  @spec end_span(:telemetry.event_name(), map(), map(), any()) :: :ok
   def end_span(_name, _measurements, _metadata, _config) do
     Membrane.OpenTelemetry.end_span(@span_id)
     Process.put(@pdict_key_span_alive?, false)
     :ok
   end
 
-  @spec callback_start([atom()], map(), map(), any()) :: :ok
+  @spec callback_start(:telemetry.event_name(), map(), map(), any()) :: :ok
   def callback_start([:membrane, _callback, :start] = name, _measurements, _metadata, _config) do
     if Process.get(@pdict_key_span_alive?, false) do
       event_name = name |> Enum.map_join("_", &Atom.to_string/1)
@@ -69,7 +69,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
     :ok
   end
 
-  @spec callback_stop([atom()], map(), map(), any()) :: :ok
+  @spec callback_stop(:telemetry.event_name(), map(), map(), any()) :: :ok
   def callback_stop(
         [:membrane, _callback, :stop] = name,
         %{duration: duration},
