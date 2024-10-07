@@ -59,7 +59,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
     :ok
   end
 
-  @spec callback_start(:opentelemetry.event_name(), map(), map(), any()) :: :ok
+  @spec callback_start([atom()], map(), map(), any()) :: :ok
   def callback_start([:membrane, _callback, :start] = name, _measurements, _metadata, _config) do
     if Process.get(@pdict_key_span_alive?, false) do
       event_name = name |> Enum.map_join("_", &Atom.to_string/1)
@@ -69,7 +69,7 @@ defmodule Membrane.OpenTelemetry.Plugs.Launch.HandlerFunctions do
     :ok
   end
 
-  @spec callback_stop(:opentelemetry.event_name(), map(), map(), any()) :: :ok
+  @spec callback_stop([atom()], map(), map(), any()) :: :ok
   def callback_stop(
         [:membrane, _callback, :stop] = name,
         %{duration: duration},
